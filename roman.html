@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mass Communication - Multi-Scene Cinematic Sound Design Engine</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        cinzel: ['Cinzel', 'serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        dark: {
+                            bg: '#0A0C10',
+                            card: '#12161F',
+                            border: '#1E2638',
+                            hover: '#2A344A'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0A0C10;
+            color: #E2E8F0;
+        }
+
+        /* Soundwave indicator animation */
+        @keyframes soundWave {
+            0%, 100% { height: 4px; }
+            50% { height: 22px; }
+        }
+        .wave-bar {
+            width: 3px;
+            background: currentColor;
+            border-radius: 3px;
+            animation: soundWave 1.1s ease-in-out infinite;
+        }
+        .wave-bar:nth-child(1) { animation-delay: 0.0s; }
+        .wave-bar:nth-child(2) { animation-delay: 0.15s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.45s; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0A0C10; }
+        ::-webkit-scrollbar-thumb { background: #1E2638; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3B82F6; }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            accent-color: #3B82F6;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col justify-between">
+
+    <!-- Header & Title Banner -->
+    <header class="border-b border-dark-border bg-dark-card/90 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3.5">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white font-black text-2xl shadow-lg">
+                    <i class="fa-solid fa-sliders"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] font-mono tracking-widest text-blue-400 font-bold uppercase">Department of Mass Communication • Sound & Design</span>
+                    <h1 class="text-xl sm:text-2xl font-black font-cinzel text-white tracking-wide">Multi-Scene Sound Design Studio</h1>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center gap-2 bg-dark-bg px-3 py-1.5 rounded-xl border border-dark-border text-xs font-mono">
+                    <i class="fa-solid fa-volume-high text-blue-400"></i>
+                    <span class="text-slate-400">Master:</span>
+                    <input type="range" id="masterVolSlider" min="0" max="100" value="80" oninput="setMasterVolume(this.value)" class="w-20 accent-blue-500">
+                </div>
+                <button onclick="triggerImpactStab()" class="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-lg">
+                    <i class="fa-solid fa-bolt"></i> Impact Trigger
+                </button>
+                <button onclick="stopAllAudio()" class="px-3.5 py-2 bg-dark-border hover:bg-slate-800 text-slate-200 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
+                    <i class="fa-solid fa-stop text-red-400"></i> Stop All
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full flex-grow space-y-8">
+
+        <!-- Visualizer Canvas & Audio Spectrum -->
+        <section class="bg-dark-card border border-dark-border rounded-2xl p-4 shadow-xl overflow-hidden relative">
+            <div class="flex justify-between items-center mb-2">
+                <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+                    <i class="fa-solid fa-wave-square text-blue-400"></i>
+                    <span class="font-bold text-white">REAL-TIME SPECTRUM & OSCILLOSCOPE ANALYZER</span>
+                </div>
+                <span id="activeSceneBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                    Active Scene: Horror Night
+                </span>
+            </div>
+            <div class="w-full h-28 bg-dark-bg rounded-xl border border-dark-border overflow-hidden relative">
+                <canvas id="visualizerCanvas" class="w-full h-full block"></canvas>
+            </div>
+        </section>
+
+        <!-- SCENE SELECTION TABS -->
+        <section class="space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-sm font-mono uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                    <i class="fa-solid fa-film text-blue-400"></i> Select Genre / Film Scene Environment
+                </h2>
+            </div>
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <button onclick="switchScene('horror')" id="tab-horror" class="scene-tab-btn p-4 rounded-xl border bg-dark-card border-red-500/50 text-left transition-all hover:border-red-500 group shadow-lg">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-red-400 font-black text-xs font-mono uppercase tracking-wider">Scene 01</span>
+                        <i class="fa-solid fa-ghost text-red-400 text-lg group-hover:scale-110 transition-transform"></i>
+                    </div>
+                    <div class="text-base font-bold text-white font-cinzel">Horror / Haunted Night</div>
+                    <p class="text-[11px] text-slate-400 mt-1 line-clamp-1">Eerie wind, thunder, footsteps, and unsettling sub-drones.</p>
+                </button>
+
+                <button onclick="switchScene('action')" id="tab-action" class="scene-tab-btn p-4 rounded-xl border bg-dark-card border-dark-border text-left transition-all hover:border-amber-500 group opacity-70">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-amber-400 font-black text-xs font-mono uppercase tracking-wider">Scene 02</span>
+                        <i class="fa-solid fa-car-burst text-amber-400 text-lg group-hover:scale-110 transition-transform"></i>
+                    </div>
+                    <div class="text-base font-bold text-white font-cinzel">Action / Street Pursuit</div>
+                    <p class="text-[11px] text-slate-400 mt-1 line-clamp-1">Sirens, revving engines, glass shatters, and punch impacts.</p>
+                </button>
+
+                <button onclick="switchScene('romance')" id="tab-romance" class="scene-tab-btn p-4 rounded-xl border bg-dark-card border-dark-border text-left transition-all hover:border-pink-500 group opacity-70">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-pink-400 font-black text-xs font-mono uppercase tracking-wider">Scene 03</span>
+                        <i class="fa-solid fa-heart text-pink-400 text-lg group-hover:scale-110 transition-transform"></i>
+                    </div>
+                    <div class="text-base font-bold text-white font-cinzel">Romance & Emotional</div>
+                    <p class="text-[11px] text-slate-400 mt-1 line-clamp-1">Warm ambient pads, fireplace crackle, chimes, and soft rain.</p>
+                </button>
+
+                <button onclick="switchScene('wilderness')" id="tab-wilderness" class="scene-tab-btn p-4 rounded-xl border bg-dark-card border-dark-border text-left transition-all hover:border-emerald-500 group opacity-70">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-emerald-400 font-black text-xs font-mono uppercase tracking-wider">Scene 04</span>
+                        <i class="fa-solid fa-tree text-emerald-400 text-lg group-hover:scale-110 transition-transform"></i>
+                    </div>
+                    <div class="text-base font-bold text-white font-cinzel">Wilderness / Survival</div>
+                    <p class="text-[11px] text-slate-400 mt-1 line-clamp-1">River flow, rustling forest leaves, campfire, and night ambience.</p>
+                </button>
+            </div>
+        </section>
+
+        <!-- ACTIVE SCENE MASTER CONTROL BANNER -->
+        <section id="sceneMasterBanner" class="bg-dark-card border border-dark-border rounded-2xl p-6 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-xl">
+            <!-- RENDERED BY JAVASCRIPT BASED ON SELECTED SCENE -->
+        </section>
+
+        <!-- SOUND CARDS GRID FOR ACTIVE SCENE -->
+        <section class="space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-xl font-bold font-cinzel text-white flex items-center gap-2">
+                        <i class="fa-solid fa-cubes text-blue-400"></i> Individual Audio Layer Controls
+                    </h3>
+                    <p class="text-slate-400 text-xs mt-0.5">Toggle, mix, and analyze individual audio layers for class analysis.</p>
+                </div>
+            </div>
+
+            <div id="soundboardGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                <!-- RENDERED BY JAVASCRIPT -->
+            </div>
+        </section>
+
+        <!-- ACADEMIC MASS COMMUNICATION SPECIFICATIONS TABLE -->
+        <section class="bg-dark-card border border-dark-border rounded-2xl p-6 space-y-4 shadow-xl">
+            <div class="flex justify-between items-center border-b border-dark-border pb-4">
+                <div>
+                    <h3 class="text-lg font-bold font-cinzel text-white flex items-center gap-2">
+                        <i class="fa-solid fa-graduation-cap text-indigo-400"></i> Mass Communication Sound Design Analysis Table
+                    </h3>
+                    <p class="text-slate-400 text-xs mt-0.5">Acoustic, psychological, and cinematic evaluation for classroom assignment defense.</p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-dark-bg text-slate-400 font-mono uppercase text-[11px] border-b border-dark-border">
+                        <tr>
+                            <th class="p-3">Sound Element</th>
+                            <th class="p-3">Classification</th>
+                            <th class="p-3">Frequency Focus</th>
+                            <th class="p-3">Synthesis Method (Web Audio API)</th>
+                            <th class="p-3">Cinematic & Psychological Function</th>
+                        </tr>
+                    </thead>
+                    <tbody id="academicTableBody" class="divide-y divide-dark-border/60">
+                        <!-- RENDERED BY JAVASCRIPT -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-dark-border bg-dark-card py-6 mt-12 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div>
+                <span class="font-bold text-slate-300">Department of Mass Communication</span> — Sound & Design Practical Project
+            </div>
+            <div class="font-mono text-slate-500">
+                100% Client-Side Web Audio API Synthesis Engine
+            </div>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT ENGINE & SOUND DEFINITIONS -->
+    <script>
+        // WEB AUDIO API GLOBAL STATE
+        let audioCtx = null;
+        let masterGain = null;
+        let masterAnalyser = null;
+        let currentScene = 'horror';
+        let isFullScenePlaying = false;
+
+        // TRACKING ACTIVE AUDIO NODES PER SOUND ID
+        const activeNodes = {};
+        const soundVolumes = {};
+        const soundMutes = {};
+
+        // FOUR DISTINCT SCENE DEFINITIONS (6 TO 8 SOUNDS EACH)
+        const sceneData = {
+            horror: {
+                id: 'horror',
+                title: 'Horror / Haunted Night',
+                themeColor: 'red',
+                accentClass: 'text-red-400',
+                bgClass: 'bg-red-500/10',
+                borderClass: 'border-red-500/30',
+                btnBg: 'bg-red-600 hover:bg-red-700',
+                desc: 'An unsettling, tension-filled atmospheric night scene featuring rain, distant thunder, creeping footsteps, and psychological horror sub-drones.',
+                sounds: [
+                    { id: 'h_thunder', title: 'Distant Thunder', icon: 'fa-cloud-bolt', type: 'Diegetic', freq: '30 Hz - 250 Hz', desc: 'Low rumbling storm bursts.', function: 'Signals environmental hostility and impending danger.', vol: 0.8 },
+                    { id: 'h_rain', title: 'Continuous Heavy Rain', icon: 'fa-cloud-showers-heavy', type: 'Diegetic', freq: '500 Hz - 8,000 Hz', desc: 'Filtered continuous rain texture.', function: 'Establishes spatial isolation and auditory masking.', vol: 0.7 },
+                    { id: 'h_door', title: 'Creaking Wooden Door', icon: 'fa-door-open', type: 'Diegetic', freq: '300 Hz - 3,500 Hz', desc: 'Friction-sweep wood squeak.', function: 'Signals boundary invasion or unseen entry.', vol: 0.85 },
+                    { id: 'h_footsteps', title: 'Creeping Footsteps', icon: 'fa-shoe-prints', type: 'Diegetic', freq: '80 Hz - 2,200 Hz', desc: 'Rhythmic wood thuds.', function: 'Creates stalking suspense and approaching threat.', vol: 0.8 },
+                    { id: 'h_wind', title: 'Eerie Screaming Wind', icon: 'fa-wind', type: 'Diegetic', freq: '400 Hz - 2,500 Hz', desc: 'Resonant sweeping wind noise.', function: 'Fills acoustic silence with haunted atmosphere.', vol: 0.6 },
+                    { id: 'h_drone', title: 'Horror Sub-Drone', icon: 'fa-ghost', type: 'Non-Diegetic', freq: '35 Hz - 400 Hz', desc: 'Detuned tritone sub-bass pad.', function: 'Instills deep visceral dread and psychological fear.', vol: 0.85 },
+                    { id: 'h_heartbeat', title: 'Rapid Heartbeat', icon: 'fa-heart-pulse', type: 'Diegetic', freq: '50 Hz - 180 Hz', desc: 'Low-frequency muffled pulse.', function: 'Mirrors protagonist terror and heightened panic.', vol: 0.9 },
+                    { id: 'h_whispers', title: 'Ghostly Whispers', icon: 'fa-comments', type: 'Non-Diegetic', freq: '800 Hz - 4,500 Hz', desc: 'Panned whispering noise sweeps.', function: 'Evokes supernatural presence and paranoia.', vol: 0.65 }
+                ]
+            },
+            action: {
+                id: 'action',
+                title: 'Action / Street Pursuit',
+                themeColor: 'amber',
+                accentClass: 'text-amber-400',
+                bgClass: 'bg-amber-500/10',
+                borderClass: 'border-amber-500/30',
+                btnBg: 'bg-amber-600 hover:bg-amber-700',
+                desc: 'High-adrenaline urban chase scene with police sirens, revving engines, glass breaking, gunshots, and heavy impact hits.',
+                sounds: [
+                    { id: 'a_siren', title: 'Police Patrol Siren', icon: 'fa-lightbulb', type: 'Diegetic', freq: '600 Hz - 1,500 Hz', desc: 'Frequency modulated wailing siren.', function: 'Establishes law enforcement pursuit and high stakes.', vol: 0.75 },
+                    { id: 'a_engine', title: 'Revving Sports Engine', icon: 'fa-car', type: 'Diegetic', freq: '100 Hz - 1,800 Hz', desc: 'Pulsing saw-wave car engine sound.', function: 'Drives kinetic momentum and speed urgency.', vol: 0.8 },
+                    { id: 'a_gunshot', title: 'Gunshot / Impact Burst', icon: 'fa-explosion', type: 'Diegetic', freq: '100 Hz - 10,000 Hz', desc: 'Sharp transient burst with decay.', function: 'Signals immediate lethal violence and tension spikes.', vol: 0.9 },
+                    { id: 'a_glass', title: 'Shattering Glass', icon: 'fa-burst', type: 'Diegetic', freq: '2,500 Hz - 12,000 Hz', desc: 'High frequency metallic crunch.', function: 'Provides tactile feedback of destruction and chaos.', vol: 0.7 },
+                    { id: 'a_punch', title: 'Heavy Hit / Combat Punch', icon: 'fa-hand-fist', type: 'Diegetic', freq: '80 Hz - 800 Hz', desc: 'Low thud with mid slap transient.', function: 'Accentuates physical combat collision.', vol: 0.85 },
+                    { id: 'a_chopper', title: 'Helicopter Blades', icon: 'fa-helicopter', type: 'Diegetic', freq: '40 Hz - 600 Hz', desc: 'Low frequency choppy rotor pulse.', function: 'Adds aerial surveillance tension and scale.', vol: 0.75 },
+                    { id: 'a_heartbeat', title: 'Adrenaline Heartbeat', icon: 'fa-heart-pulse', type: 'Diegetic', freq: '60 Hz - 200 Hz', desc: 'Fast rhythmic heart pulse.', function: 'Conveys physical exertion and extreme stress.', vol: 0.8 },
+                    { id: 'a_boom', title: 'Explosive Bass Boom', icon: 'fa-volcano', type: 'Non-Diegetic', freq: '20 Hz - 150 Hz', desc: 'Cinematic sub-bass drop.', function: 'Punctuates scene climaxes and dramatic beats.', vol: 0.95 }
+                ]
+            },
+            romance: {
+                id: 'romance',
+                title: 'Romance & Emotional',
+                themeColor: 'pink',
+                accentClass: 'text-pink-400',
+                bgClass: 'bg-pink-500/10',
+                borderClass: 'border-pink-500/30',
+                btnBg: 'bg-pink-600 hover:bg-pink-700',
+                desc: 'Warm, intimate, and soothing environment featuring soft ambient synth pads, fireplace crackle, soft wind chimes, and gentle rain.',
+                sounds: [
+                    { id: 'r_pad', title: 'Warm Ambient Synth Pad', icon: 'fa-music', type: 'Non-Diegetic', freq: '150 Hz - 2,000 Hz', desc: 'Lush chord pad with smooth filter.', function: 'Evokes warmth, affection, and emotional intimacy.', vol: 0.75 },
+                    { id: 'r_fireplace', title: 'Fireplace Wood Crackle', icon: 'fa-fire', type: 'Diegetic', freq: '1,000 Hz - 8,000 Hz', desc: 'Randomized crackling noise pops.', function: 'Provides cozy warmth and indoor comfort.', vol: 0.65 },
+                    { id: 'r_softrain', title: 'Gentle Window Rain', icon: 'fa-cloud-rain', type: 'Diegetic', freq: '800 Hz - 6,000 Hz', desc: 'Soft high-pass filtered rain drops.', function: 'Frames indoor intimacy against soft outdoor rain.', vol: 0.6 },
+                    { id: 'r_chimes', title: 'Soft Wind Chimes', icon: 'fa-bell', type: 'Diegetic', freq: '2,000 Hz - 10,000 Hz', desc: 'Random metallic sine glissando.', function: 'Adds delicate, dreamlike tranquility.', vol: 0.5 },
+                    { id: 'r_footsteps', title: 'Soft Slow Footsteps', icon: 'fa-shoe-prints', type: 'Diegetic', freq: '100 Hz - 1,500 Hz', desc: 'Soft carpeted footsteps.', function: 'Signals calm approach and comfort.', vol: 0.55 },
+                    { id: 'r_birds', title: 'Gentle Morning Birds', icon: 'fa-dove', type: 'Diegetic', freq: '1,500 Hz - 5,000 Hz', desc: 'Melodic frequency chirp glides.', function: 'Represents peace, hope, and new beginnings.', vol: 0.5 }
+                ]
+            },
+            wilderness: {
+                id: 'wilderness',
+                title: 'Wilderness & Survival',
+                themeColor: 'emerald',
+                accentClass: 'text-emerald-400',
+                bgClass: 'bg-emerald-500/10',
+                borderClass: 'border-emerald-500/30',
+                btnBg: 'bg-emerald-600 hover:bg-emerald-700',
+                desc: 'Rich, natural forest wilderness featuring flowing river currents, rustling foliage, campfire crackles, and night animal calls.',
+                sounds: [
+                    { id: 'w_river', title: 'Flowing River Stream', icon: 'fa-water', type: 'Diegetic', freq: '200 Hz - 5,000 Hz', desc: 'Continuous flowing water noise.', function: 'Establishes natural life, movement, and setting.', vol: 0.75 },
+                    { id: 'w_campfire', title: 'Campfire Crackle', icon: 'fa-campground', type: 'Diegetic', freq: '800 Hz - 7,000 Hz', desc: 'Rhythmic wood snap noise bursts.', function: 'Represents human survival, warmth, and refuge.', vol: 0.7 },
+                    { id: 'w_leaves', title: 'Rustling Leaves & Trees', icon: 'fa-leaf', type: 'Diegetic', freq: '1,200 Hz - 6,000 Hz', desc: 'Modulated bandpass foliage noise.', function: 'Signals wind movement or hidden wildlife.', vol: 0.65 },
+                    { id: 'w_wind', title: 'Heavy Mountain Wind', icon: 'fa-wind', type: 'Diegetic', freq: '200 Hz - 1,800 Hz', desc: 'Deep roaring wind sweep.', function: 'Conveys vast scale and natural exposure.', vol: 0.7 },
+                    { id: 'w_crows', title: 'Wild Crows & Birds', icon: 'fa-crow', type: 'Diegetic', freq: '700 Hz - 3,000 Hz', desc: 'FM pitch sweeps simulating bird calls.', function: 'Fills open space with realistic wildlife presence.', vol: 0.6 },
+                    { id: 'w_thunder', title: 'Distant Forest Thunder', icon: 'fa-cloud-bolt', type: 'Diegetic', freq: '40 Hz - 300 Hz', desc: 'Low rumbling acoustic storm.', function: 'Builds atmospheric tension and survival risk.', vol: 0.75 }
+                ]
+            }
+        };
+
+        // INITIALIZE AUDIO SYSTEM
+        function initAudioEngine() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                masterAnalyser = audioCtx.createAnalyser();
+                masterAnalyser.fftSize = 256;
+
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = 0.8;
+                masterGain.connect(masterAnalyser);
+                masterAnalyser.connect(audioCtx.destination);
+
+                setupCanvasVisualizer();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function setMasterVolume(val) {
+            const v = val / 100;
+            if (masterGain && audioCtx) {
+                masterGain.gain.setValueAtTime(v, audioCtx.currentTime);
+            }
+        }
+
+        // SWITCH SCENE SYSTEM
+        function switchScene(sceneId) {
+            stopAllAudio();
+            currentScene = sceneId;
+
+            // Update Tab Styling
+            document.querySelectorAll('.scene-tab-btn').forEach(btn => {
+                btn.classList.add('opacity-70', 'border-dark-border');
+            });
+            const activeTab = document.getElementById(`tab-${sceneId}`);
+            activeTab.classList.remove('opacity-70', 'border-dark-border');
+
+            const scene = sceneData[sceneId];
+            document.getElementById('activeSceneBadge').textContent = `Active Scene: ${scene.title}`;
+
+            renderSceneMasterBanner();
+            renderSoundboard();
+            renderAcademicTable();
+        }
+
+        // RENDER MASTER BANNER FOR CURRENT SCENE
+        function renderSceneMasterBanner() {
+            const scene = sceneData[currentScene];
+            const banner = document.getElementById('sceneMasterBanner');
+
+            banner.innerHTML = `
+                <div class="space-y-2 max-w-xl">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full ${scene.bgClass} border ${scene.borderClass} ${scene.accentClass} text-xs font-mono font-bold">
+                        <i class="fa-solid fa-layer-group"></i> Multi-Layer Combined Scene Engine
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-bold font-cinzel text-white">${scene.title}</h2>
+                    <p class="text-slate-400 text-xs leading-relaxed">${scene.desc}</p>
+                </div>
+
+                <div class="w-full md:w-auto flex flex-col sm:flex-row items-center gap-3">
+                    <button id="masterSceneBtn" onclick="toggleFullScene()" class="w-full sm:w-auto px-6 py-3.5 ${scene.btnBg} text-white font-black rounded-xl text-xs tracking-widest uppercase flex items-center justify-center gap-3 transition-all shadow-xl">
+                        <i class="fa-solid fa-play" id="masterSceneIcon"></i> <span id="masterSceneText">PLAY FULL COMBINED SCENE</span>
+                    </button>
+                </div>
+            `;
+        }
+
+        // RENDER SOUNDBOARD CARDS
+        function renderSoundboard() {
+            const scene = sceneData[currentScene];
+            const grid = document.getElementById('soundboardGrid');
+            grid.innerHTML = '';
+
+            scene.sounds.forEach(sound => {
+                // Set default vol tracking
+                if (!(sound.id in soundVolumes)) soundVolumes[sound.id] = sound.vol;
+                if (!(sound.id in soundMutes)) soundMutes[sound.id] = false;
+
+                const card = document.createElement('div');
+                card.className = `bg-dark-card border border-dark-border hover:border-slate-600 rounded-2xl p-4 transition-all flex flex-col justify-between space-y-3 shadow-lg group`;
+                card.id = `card-${sound.id}`;
+
+                card.innerHTML = `
+                    <div class="space-y-2.5">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-xl bg-dark-bg flex items-center justify-center ${scene.accentClass} border border-dark-border text-base">
+                                    <i class="fa-solid ${sound.icon}"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-white group-hover:${scene.accentClass} transition-colors line-clamp-1">${sound.title}</h4>
+                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-semibold border ${sound.type === 'Diegetic' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-purple-500/10 text-purple-400 border-purple-500/30'} inline-block mt-0.5">
+                                        ${sound.type}
+                                    </span>
+                                </div>
+                            </div>
+                            <div id="wave-${sound.id}" class="hidden flex items-center gap-1 h-5 ${scene.accentClass}">
+                                <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+                            </div>
+                        </div>
+
+                        <p class="text-[11px] text-slate-400 leading-normal line-clamp-2">${sound.desc}</p>
+
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+                                <span>Volume</span>
+                                <span id="vol-txt-${sound.id}">${Math.round(soundVolumes[sound.id] * 100)}%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value="${soundVolumes[sound.id] * 100}" 
+                                oninput="updateSoundVolume('${sound.id}', this.value)"
+                                class="w-full accent-blue-500 h-1.5 bg-dark-bg rounded-lg appearance-none cursor-pointer">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 pt-2 border-t border-dark-border">
+                        <button id="btn-${sound.id}" onclick="togglePlaySingle('${sound.id}')" class="flex-1 py-2 px-3 bg-dark-bg hover:bg-dark-hover border border-dark-border text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all">
+                            <i class="fa-solid fa-play" id="icon-${sound.id}"></i> <span id="text-${sound.id}">PLAY</span>
+                        </button>
+                        <button id="mute-${sound.id}" onclick="toggleMuteSingle('${sound.id}')" class="px-2.5 py-2 bg-dark-bg hover:bg-dark-hover border border-dark-border text-slate-400 rounded-xl text-[10px] font-mono font-bold">
+                            MUTE
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // RENDER ACADEMIC ANALYSIS TABLE
+        function renderAcademicTable() {
+            const scene = sceneData[currentScene];
+            const tbody = document.getElementById('academicTableBody');
+            tbody.innerHTML = '';
+
+            scene.sounds.forEach(sound => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-dark-bg/50 transition-colors';
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid ${sound.icon} ${scene.accentClass}"></i> ${sound.title}
+                    </td>
+                    <td class="p-3">
+                        <span class="px-2 py-0.5 rounded-full text-[9px] font-semibold border ${sound.type === 'Diegetic' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-purple-500/10 text-purple-400 border-purple-500/30'}">
+                            ${sound.type}
+                        </span>
+                    </td>
+                    <td class="p-3 font-mono text-slate-400 text-[11px]">${sound.freq}</td>
+                    <td class="p-3 text-slate-300 text-xs">${sound.desc}</td>
+                    <td class="p-3 text-slate-400 text-xs">${sound.function}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // MASTER COMBINED SCENE TOGGLE
+        function toggleFullScene() {
+            const ctx = initAudioEngine();
+            const scene = sceneData[currentScene];
+            const btnText = document.getElementById('masterSceneText');
+            const btnIcon = document.getElementById('masterSceneIcon');
+
+            if (isFullScenePlaying) {
+                stopAllAudio();
+            } else {
+                stopAllAudio();
+                scene.sounds.forEach(sound => startSoundLoop(sound.id, ctx));
+                isFullScenePlaying = true;
+                if (btnText) btnText.textContent = 'STOP COMBINED SCENE';
+                if (btnIcon) btnIcon.className = 'fa-solid fa-square';
+            }
+        }
+
+        function togglePlaySingle(id) {
+            const ctx = initAudioEngine();
+            if (activeNodes[id]) {
+                stopSingleSound(id);
+            } else {
+                startSoundLoop(id, ctx);
+            }
+        }
+
+        function updateSoundVolume(id, val) {
+            const v = val / 100;
+            soundVolumes[id] = v;
+            const txt = document.getElementById(`vol-txt-${id}`);
+            if (txt) txt.textContent = `${val}%`;
+
+            if (activeNodes[id] && activeNodes[id].gainNode) {
+                const effectiveVol = soundMutes[id] ? 0 : v;
+                activeNodes[id].gainNode.gain.setValueAtTime(effectiveVol, audioCtx.currentTime);
+            }
+        }
+
+        function toggleMuteSingle(id) {
+            soundMutes[id] = !soundMutes[id];
+            const btn = document.getElementById(`mute-${id}`);
+            if (btn) {
+                btn.className = soundMutes[id] 
+                    ? 'px-2.5 py-2 bg-red-600/20 text-red-400 border border-red-500/30 rounded-xl text-[10px] font-mono font-bold'
+                    : 'px-2.5 py-2 bg-dark-bg hover:bg-dark-hover border border-dark-border text-slate-400 rounded-xl text-[10px] font-mono font-bold';
+            }
+            updateSoundVolume(id, soundVolumes[id] * 100);
+        }
+
+        function stopSingleSound(id) {
+            if (activeNodes[id]) {
+                try { activeNodes[id].stop(); } catch(e){}
+                delete activeNodes[id];
+            }
+            updateCardUI(id, false);
+        }
+
+        function stopAllAudio() {
+            Object.keys(activeNodes).forEach(id => stopSingleSound(id));
+            isFullScenePlaying = false;
+            const btnText = document.getElementById('masterSceneText');
+            const btnIcon = document.getElementById('masterSceneIcon');
+            if (btnText) btnText.textContent = 'PLAY FULL COMBINED SCENE';
+            if (btnIcon) btnIcon.className = 'fa-solid fa-play';
+        }
+
+        function updateCardUI(id, isPlaying) {
+            const text = document.getElementById(`text-${id}`);
+            const icon = document.getElementById(`icon-${id}`);
+            const wave = document.getElementById(`wave-${id}`);
+
+            if (isPlaying) {
+                if (text) text.textContent = 'STOP';
+                if (icon) icon.className = 'fa-solid fa-square';
+                if (wave) wave.classList.remove('hidden');
+            } else {
+                if (text) text.textContent = 'PLAY';
+                if (icon) icon.className = 'fa-solid fa-play';
+                if (wave) wave.classList.add('hidden');
+            }
+        }
+
+        // PROCEDURAL AUDIO NOISE BUFFER GENERATOR
+        function createNoiseBuffer(ctx, duration = 3) {
+            const size = ctx.sampleRate * duration;
+            const buffer = ctx.createBuffer(1, size, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+            return buffer;
+        }
+
+        // MULTI-SCENE PROCEDURAL SYNTHESIS ENGINE
+        function startSoundLoop(id, ctx) {
+            if (activeNodes[id]) return;
+
+            const gain = ctx.createGain();
+            const vol = soundMutes[id] ? 0 : soundVolumes[id];
+            gain.gain.setValueAtTime(vol, ctx.currentTime);
+            gain.connect(masterGain);
+
+            let soundObj = null;
+
+            switch(id) {
+                // HORROR
+                case 'h_thunder': soundObj = synthThunder(ctx, gain); break;
+                case 'h_rain': soundObj = synthContinuousRain(ctx, gain, 1200); break;
+                case 'h_door': soundObj = synthCreakDoor(ctx, gain); break;
+                case 'h_footsteps': soundObj = synthRhythmicThuds(ctx, gain, 1400); break;
+                case 'h_wind': soundObj = synthWindSweep(ctx, gain, 800); break;
+                case 'h_drone': soundObj = synthSubDrone(ctx, gain, 41.2, 58.27); break;
+                case 'h_heartbeat': soundObj = synthHeartbeat(ctx, gain, 70); break;
+                case 'h_whispers': soundObj = synthWhispers(ctx, gain); break;
+
+                // ACTION
+                case 'a_siren': soundObj = synthSiren(ctx, gain); break;
+                case 'a_engine': soundObj = synthEngine(ctx, gain); break;
+                case 'a_gunshot': soundObj = synthGunshot(ctx, gain); break;
+                case 'a_glass': soundObj = synthGlassShatter(ctx, gain); break;
+                case 'a_punch': soundObj = synthImpactPunch(ctx, gain); break;
+                case 'a_chopper': soundObj = synthHelicopter(ctx, gain); break;
+                case 'a_heartbeat': soundObj = synthHeartbeat(ctx, gain, 120); break;
+                case 'a_boom': soundObj = synthBassDrop(ctx, gain); break;
+
+                // ROMANCE
+                case 'r_pad': soundObj = synthAmbientPad(ctx, gain); break;
+                case 'r_fireplace': soundObj = synthCrackle(ctx, gain, 0.08); break;
+                case 'r_softrain': soundObj = synthContinuousRain(ctx, gain, 3000); break;
+                case 'r_chimes': soundObj = synthChimes(ctx, gain); break;
+                case 'r_footsteps': soundObj = synthRhythmicThuds(ctx, gain, 1800); break;
+                case 'r_birds': soundObj = synthBirdChirps(ctx, gain); break;
+
+                // WILDERNESS
+                case 'w_river': soundObj = synthRiver(ctx, gain); break;
+                case 'w_campfire': soundObj = synthCrackle(ctx, gain, 0.15); break;
+                case 'w_leaves': soundObj = synthWindSweep(ctx, gain, 2200); break;
+                case 'w_wind': soundObj = synthWindSweep(ctx, gain, 400); break;
+                case 'w_crows': soundObj = synthCrows(ctx, gain); break;
+                case 'w_thunder': soundObj = synthThunder(ctx, gain); break;
+            }
+
+            activeNodes[id] = {
+                gainNode: gain,
+                stop: soundObj ? soundObj.stop : () => {}
+            };
+            updateCardUI(id, true);
+        }
+
+        // --- SYNTHESIS ALGORITHMS ---
+        function synthThunder(ctx, dest) {
+            let timer = setInterval(() => {
+                const thunder = ctx.createBufferSource();
+                thunder.buffer = createNoiseBuffer(ctx, 2);
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass'; filter.frequency.value = 150;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0.9, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.8);
+                thunder.connect(filter); filter.connect(g); g.connect(dest);
+                thunder.start();
+            }, 6000);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthContinuousRain(ctx, dest, cutoff) {
+            const noise = ctx.createBufferSource();
+            noise.buffer = createNoiseBuffer(ctx, 3); noise.loop = true;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.value = cutoff;
+            noise.connect(filter); filter.connect(dest); noise.start();
+            return { stop: () => noise.stop() };
+        }
+
+        function synthCreakDoor(ctx, dest) {
+            let timer = setInterval(() => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(180, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(320, ctx.currentTime + 0.8);
+                g.gain.setValueAtTime(0.5, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.8);
+                osc.connect(g); g.connect(dest);
+                osc.start(); osc.stop(ctx.currentTime + 0.8);
+            }, 4500);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthRhythmicThuds(ctx, dest, intervalMs) {
+            let timer = setInterval(() => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.frequency.setValueAtTime(100, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.12);
+                g.gain.setValueAtTime(0.7, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+                osc.connect(g); g.connect(dest);
+                osc.start(); osc.stop(ctx.currentTime + 0.12);
+            }, intervalMs);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthWindSweep(ctx, dest, centerFreq) {
+            const noise = ctx.createBufferSource();
+            noise.buffer = createNoiseBuffer(ctx, 3); noise.loop = true;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.Q.value = 6;
+            const lfo = ctx.createOscillator();
+            lfo.frequency.value = 0.25;
+            const lfoGain = ctx.createGain();
+            lfoGain.gain.value = centerFreq * 0.5;
+            lfo.connect(lfoGain); lfoGain.connect(filter.frequency);
+            filter.frequency.value = centerFreq;
+            noise.connect(filter); filter.connect(dest);
+            noise.start(); lfo.start();
+            return { stop: () => { noise.stop(); lfo.stop(); } };
+        }
+
+        function synthSubDrone(ctx, dest, f1, f2) {
+            const o1 = ctx.createOscillator(); const o2 = ctx.createOscillator();
+            o1.type = 'sawtooth'; o2.type = 'sawtooth';
+            o1.frequency.value = f1; o2.frequency.value = f2;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.value = 300;
+            o1.connect(filter); o2.connect(filter); filter.connect(dest);
+            o1.start(); o2.start();
+            return { stop: () => { o1.stop(); o2.stop(); } };
+        }
+
+        function synthHeartbeat(ctx, dest, bpm) {
+            let timer = setInterval(() => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.frequency.setValueAtTime(60, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(20, ctx.currentTime + 0.15);
+                g.gain.setValueAtTime(0.9, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+                osc.connect(g); g.connect(dest);
+                osc.start(); osc.stop(ctx.currentTime + 0.15);
+            }, (60 / bpm) * 1000);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthWhispers(ctx, dest) {
+            const noise = ctx.createBufferSource();
+            noise.buffer = createNoiseBuffer(ctx, 3); noise.loop = true;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.frequency.value = 1800; filter.Q.value = 5;
+            noise.connect(filter); filter.connect(dest); noise.start();
+            return { stop: () => noise.stop() };
+        }
+
+        function synthSiren(ctx, dest) {
+            const osc = ctx.createOscillator();
+            const lfo = ctx.createOscillator();
+            const lfoGain = ctx.createGain();
+            osc.type = 'sine';
+            lfo.frequency.value = 0.5;
+            lfoGain.gain.value = 300;
+            lfo.connect(osc.frequency);
+            osc.frequency.value = 800;
+            osc.connect(dest);
+            osc.start(); lfo.start();
+            return { stop: () => { osc.stop(); lfo.stop(); } };
+        }
+
+        function synthEngine(ctx, dest) {
+            const osc = ctx.createOscillator();
+            const filter = ctx.createBiquadFilter();
+            osc.type = 'sawtooth'; osc.frequency.value = 80;
+            filter.type = 'lowpass'; filter.frequency.value = 400;
+            osc.connect(filter); filter.connect(dest); osc.start();
+            return { stop: () => osc.stop() };
+        }
+
+        function synthGunshot(ctx, dest) {
+            let timer = setInterval(() => {
+                const noise = ctx.createBufferSource();
+                noise.buffer = createNoiseBuffer(ctx, 1);
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(1.0, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                noise.connect(g); g.connect(dest); noise.start();
+            }, 3000);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthGlassShatter(ctx, dest) {
+            let timer = setInterval(() => {
+                const noise = ctx.createBufferSource();
+                noise.buffer = createNoiseBuffer(ctx, 1);
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'highpass'; filter.frequency.value = 4000;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(0.7, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+                noise.connect(filter); filter.connect(g); g.connect(dest); noise.start();
+            }, 4000);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthImpactPunch(ctx, dest) {
+            let timer = setInterval(() => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.frequency.setValueAtTime(150, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 0.1);
+                g.gain.setValueAtTime(0.9, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+                osc.connect(g); g.connect(dest); osc.start(); osc.stop(ctx.currentTime + 0.1);
+            }, 2500);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthHelicopter(ctx, dest) {
+            const noise = ctx.createBufferSource();
+            noise.buffer = createNoiseBuffer(ctx, 3); noise.loop = true;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass'; filter.frequency.value = 250;
+            const lfo = ctx.createOscillator();
+            lfo.frequency.value = 8;
+            const lfoGain = ctx.createGain();
+            lfoGain.gain.value = 0.8;
+            const g = ctx.createGain();
+            lfo.connect(g.gain);
+            noise.connect(filter); filter.connect(g); g.connect(dest);
+            noise.start(); lfo.start();
+            return { stop: () => { noise.stop(); lfo.stop(); } };
+        }
+
+        function synthBassDrop(ctx, dest) {
+            let timer = setInterval(() => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.frequency.setValueAtTime(120, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(25, ctx.currentTime + 1.2);
+                g.gain.setValueAtTime(1.0, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+                osc.connect(g); g.connect(dest); osc.start(); osc.stop(ctx.currentTime + 1.2);
+            }, 7000);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthAmbientPad(ctx, dest) {
+            const freqs = [130.81, 164.81, 196.00, 246.94]; // C chord
+            const oscs = freqs.map(f => {
+                const o = ctx.createOscillator();
+                o.type = 'triangle'; o.frequency.value = f;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass'; filter.frequency.value = 600;
+                o.connect(filter); filter.connect(dest); o.start();
+                return o;
+            });
+            return { stop: () => oscs.forEach(o => o.stop()) };
+        }
+
+        function synthCrackle(ctx, dest, intensity) {
+            let timer = setInterval(() => {
+                if (Math.random() < 0.6) {
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = createNoiseBuffer(ctx, 0.05);
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'highpass'; filter.frequency.value = 2000;
+                    const g = ctx.createGain();
+                    g.gain.setValueAtTime(intensity, ctx.currentTime);
+                    noise.connect(filter); filter.connect(g); g.connect(dest); noise.start();
+                }
+            }, 100);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthChimes(ctx, dest) {
+            let timer = setInterval(() => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 1500 + Math.random() * 1500;
+                g.gain.setValueAtTime(0.3, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+                osc.connect(g); g.connect(dest); osc.start(); osc.stop(ctx.currentTime + 1.5);
+            }, 1800);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthBirdChirps(ctx, dest) {
+            let timer = setInterval(() => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(2200, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(3200, ctx.currentTime + 0.15);
+                g.gain.setValueAtTime(0.3, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+                osc.connect(g); g.connect(dest); osc.start(); osc.stop(ctx.currentTime + 0.15);
+            }, 3000);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function synthRiver(ctx, dest) {
+            const noise = ctx.createBufferSource();
+            noise.buffer = createNoiseBuffer(ctx, 3); noise.loop = true;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'bandpass'; filter.frequency.value = 1200; filter.Q.value = 1.5;
+            noise.connect(filter); filter.connect(dest); noise.start();
+            return { stop: () => noise.stop() };
+        }
+
+        function synthCrows(ctx, dest) {
+            let timer = setInterval(() => {
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(500, ctx.currentTime + 0.25);
+                g.gain.setValueAtTime(0.4, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+                osc.connect(g); g.connect(dest); osc.start(); osc.stop(ctx.currentTime + 0.25);
+            }, 5000);
+            return { stop: () => clearInterval(timer) };
+        }
+
+        function triggerImpactStab() {
+            const ctx = initAudioEngine();
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(1.0, ctx.currentTime);
+            g.connect(masterGain);
+            synthGunshot(ctx, g);
+            synthBassDrop(ctx, g);
+        }
+
+        // CANVAS SPECTRUM VISUALIZER
+        function setupCanvasVisualizer() {
+            const canvas = document.getElementById('visualizerCanvas');
+            const ctx = canvas.getContext('2d');
+
+            function resize() {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            const bufferLength = masterAnalyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                masterAnalyser.getByteFrequencyData(dataArray);
+
+                ctx.fillStyle = '#0A0C10';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const barWidth = (canvas.width / bufferLength) * 2.2;
+                let x = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    const barHeight = (dataArray[i] / 255) * canvas.height;
+
+                    const gradient = ctx.createLinearGradient(0, canvas.height, 0, 0);
+                    gradient.addColorStop(0, '#3B82F6');
+                    gradient.addColorStop(0.5, '#8B5CF6');
+                    gradient.addColorStop(1, '#EC4899');
+
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+                    x += barWidth;
+                }
+            }
+            draw();
+        }
+
+        // INITIAL LOAD
+        window.onload = function() {
+            switchScene('horror');
+        };
+    </script>
+</body>
+</html>
